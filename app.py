@@ -1,3 +1,85 @@
+# app.py
+import os
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+
+st.set_page_config(page_title="서울 기온 변화 분석", page_icon="🌡️", layout="wide")
+
+
+# ---------- 1. 파일 로드 ----------
+def find_csv_path():
+    candidates = [
+        "seoul_temperature.csv",
+        "엑셀-seoul_temperature.csv",
+        "/mnt/files/seoul_temperature.csv",
+        "/mnt/files/엑셀-seoul_temperature.csv",
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def load_data():
+    path = find_csv_path()
+    if path is None:
+        st.error("온도 데이터 파일을 찾지 못했습니다.")
+        st.info("Files 탭에 올린 파일명이 코드와 일치하는지 확인하세요.")
+        st.stop()
+    df = pd.read_csv(path, encoding="utf-8-sig")
+    df["날짜"] = pd.to_datetime(
+        df["날짜"].astype(str).str.replace('"', "", regex=False).str.strip(),
+        format="%Y-%m-%d",
+    )
+    df["연도"] = df["날짜"].dt.year
+    df["월"] = df["날짜"].dt.month
+    return df
+
+
+df = load_data()
+원본_행수 = len(df)
+
+기온_컬럼 = ["평균기온(℃)", "최저기온(℃)", "최고기온(℃)"]
+
+# ---------- 2. 전처리 ----------
+기온_있음 = df[기온_컬럼].notna().any(axis=1)
+연도_기온일수 = 기온_있음.groupby(df["연도"]).sum()
+유효_연도 = 연도_기온일수[연도_기온일수 >= 360].index
+df = df[df["연도"].isin(유효_연도)]
+
+연평균 = df.groupby("연도")["평균기온(℃)"].mean().sort_index()
+이동평균 = 연평균.rolling(window=5, min_periods=5, center=True).mean().sort_index()
+
+df["일교차"] = df["최고기온(℃)"] - df["최저기온(℃)"]
+
+def assign_season(m):
+    if 3 <= m <= 5:
+        return "봄"
+    if 6 <= m <= 8:
+        return "여름"
+    if 9 <= m <= 11:
+        return "가을"
+    return "겨울"
+
+df["계절"] = df["월"].apply(assign_season)
+
+
+def linear_fit(x, y):
+    """단순 선형 회귀식 y = a + b*x 반환 (데이터 부족 시 None)"""
+    n = len(x)
+    if n < 2:
+        return None
+    mx = sum(x) / n
+    my = sum(y) / n
+    sxy = sum((x[i] - mx) * (y[i] - my) for i in range(n))
+    sxx = sum((xi - mx) ** 2 for xi in x)
+    if sxx == 0:
+        return None
+    b = sxy / sxx
+    a = my - b * mx
+    return a, b
+
 # ---------- 3. 선택 구간 ----------
 선택_연도 = st.sidebar.slider("연도 범위", min_year, max_year, (min_year, max_year))
 
