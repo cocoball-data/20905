@@ -320,20 +320,23 @@ st.plotly_chart(fig_box, use_container_width=True)
 
 # ---------- 12. 기온 극단일 ----------
 st.subheader("기온 극단일 (최고/최저)")
+
 top10 = df.nlargest(10, "최고기온(℃)")[["날짜", "평균기온(℃)", "최저기온(℃)", "최고기온(℃)"]].copy()
 top10["날짜"] = top10["날짜"].dt.strftime("%Y-%m-%d")
 
 bottom10 = df.nsmallest(10, "최저기온(℃)")[["날짜", "평균기온(℃)", "최저기온(℃)", "최고기온(℃)"]].copy()
 bottom10["날짜"] = bottom10["날짜"].dt.strftime("%Y-%m-%d")
 
+# 테이블 컬럼별 소수점 2자리 표시 형식 (dict를 미리 만들어 붙여넣기 오류 방지)
+col_fmt = {"평균기온(℃)": "{:.2f}", "최저기온(℃)": "{:.2f}", "최고기온(℃)": "{:.2f}"}
+
 c4a, c4b = st.columns(2)
 with c4a:
     st.write("**최고기온 상위 10일**")
-    st.dataframe(top10.style.format({"평균기온(℃)": "{:.2f}", "최저기온(℃)": "{:.2f}", "최고기온(℃)": "{:.2f}"}))
+    st.dataframe(top10.style.format(col_fmt))
 with c4b:
     st.write("**최저기온 하위 10일**")
-    st.dataframe(bottom10.style.format({"평균기온(℃)": "{:.2f}", "최저기온(℃)": "{:.2f}", "최고기온(℃)": "{:.2f}")})
-
+    st.dataframe(bottom10.style.format(col_fmt))
 # ---------- 13. 일교차 및 변화량 ----------
 st.subheader("일교차 및 연평균 변화량")
 col_r1, col_r2 = st.columns(2)
