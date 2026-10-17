@@ -114,8 +114,6 @@ df_선택 = df[선택_mask]
 
 # ---------- 4. 사이드바 ----------
 st.sidebar.header("연도 범위 선택")
-st.sidebar.slider("연도 범위", min_year, max_year, (min_year, max_year))
-
 season = st.sidebar.selectbox("계절 필터", ["전체", "봄", "여름", "가을", "겨울"])
 
 st.sidebar.header("그래프 표시 옵션")
@@ -337,6 +335,7 @@ with c4a:
 with c4b:
     st.write("**최저기온 하위 10일**")
     st.dataframe(bottom10.style.format(col_fmt))
+
 # ---------- 13. 일교차 및 변화량 ----------
 st.subheader("일교차 및 연평균 변화량")
 col_r1, col_r2 = st.columns(2)
