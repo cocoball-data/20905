@@ -27,7 +27,15 @@ def load_data():
         st.error("온도 데이터 파일을 찾지 못했습니다.")
         st.info("Files 탭에 올린 파일명이 코드와 일치하는지 확인하세요.")
         st.stop()
-    return pd.read_csv(path, encoding="utf-8-sig")
+    df = pd.read_csv(path, encoding="utf-8-sig")
+    # 날짜 변환 + 연도/월 컬럼 생성 (이 부분이 누락되어 KeyError가 났음)
+    df["날짜"] = pd.to_datetime(
+        df["날짜"].astype(str).str.replace('"', "", regex=False).str.strip(),
+        format="%Y-%m-%d",
+    )
+    df["연도"] = df["날짜"].dt.year
+    df["월"] = df["날짜"].dt.month
+    return df
 
 df = load_data()
 
