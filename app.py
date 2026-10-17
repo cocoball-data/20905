@@ -51,6 +51,19 @@ df = df[df["연도"].isin(유효_연도)]
 연평균 = df.groupby("연도")["평균기온(℃)"].mean().sort_index()
 이동평균 = 연평균.rolling(window=5, min_periods=5, center=True).mean().sort_index()
 
+# 연도 범위 슬라이더에 필요한 최소/최대 연도
+min_year = int(연평균.index.min())
+max_year = int(연평균.index.max())
+
+# 360일 미만 제외 연도 수
+제외_연도수 = int((연도_기온일수 < 360).sum())
+
+# 이상치(연평균 기준, 1.5×IQR) 연도
+q1 = 연평균.quantile(0.25)
+q3 = 연평균.quantile(0.75)
+iqr = q3 - q1
+이상치_연도 = 연평균[(연평균 < q1 - 1.5 * iqr) | (연평균 > q3 + 1.5 * iqr)].index.tolist()
+
 df["일교차"] = df["최고기온(℃)"] - df["최저기온(℃)"]
 
 def assign_season(m):
@@ -94,8 +107,10 @@ df_선택 = df[선택_mask]
 전체_평균 = df["평균기온(℃)"].mean()
 기간_시작 = int(연평균.index.min())
 기간_끝 = int(연평균.index.max())
-min_year = int(연평균.index.min())
-max_year = int(연평균.index.max())
+
+# 선택 구간 기준 연/이동평균 (연간 차트·자동 요약 공용)
+연_선택 = 연평균[(연평균.index >= 선택_연도[0]) & (연평균.index <= 선택_연도[1])]
+이_선택 = 이동평균[(이동평균.index >= 선택_연도[0]) & (이동평균.index <= 선택_연도[1])]
 
 # ---------- 4. 사이드바 ----------
 st.sidebar.header("연도 범위 선택")
@@ -171,8 +186,9 @@ if len(연평균) > 0:
         f"최고기온 {선택_최고:.2f}℃ | 최저기온 {선택_최저:.2f}℃",
         f"전체 기간 평균기온 {전체_평균:.2f}℃ 대비 선택 구간 {선택_평균-전체_평균:+.2f}℃",
     ]
-    if trend is not None:
-        summary_lines.append(f"연평균기온 추세선 기울기 {trend[1]:+.2f}℃/년 (선택 구간 기준)")
+    trend_sel = linear_fit(list(연_선택.index), list(연_선택.values))
+    if trend_sel is not None:
+        summary_lines.append(f"연평균기온 추세선 기울기 {trend_sel[1]:+.2f}℃/년 (선택 구간 기준)")
     else:
         summary_lines.append("연평균기온 추세선: 데이터 부족 (계산 불가)")
     summary_lines.append(f"이상치(연평균 기준) {len(이상치_연도)}개")
@@ -185,11 +201,6 @@ else:
 st.subheader("연도별 평균기온 (5년 이동평균 + 선형 추세선)")
 st.caption("왼쪽 체크박스로 계열 표시 여부를 조절할 수 있습니다.")
 
-연_선택 = 연평균[(연평균.index >= 선택_연도[0]) & (연평균.index <= 선택_연도[1])]
-이_선택 = 이동평균[(이동평균.index >= 선택_연도[0]) & (이동평균.index <= 선택_연도[1])]
-
-trend = linear_fit(list(연_선택.index), list(연_선택.values))
-
 fig_annual = go.Figure()
 if show_연평균:
     fig_annual.add_trace(go.Scatter(
@@ -199,14 +210,14 @@ if show_이동평균:
     fig_annual.add_trace(go.Scatter(
         x=이_선택.index, y=이_선택.values, mode="lines+markers",
         name="5년 이동평균", line=dict(color="#d62728", width=2.5, dash="dash")))
-if show_추세선 and trend is not None:
-    a, b = trend
+if show_추세선 and trend_sel is not None:
+    a, b = trend_sel
     trend_x = [연_선택.index.min(), 연_선택.index.max()]
     fig_annual.add_trace(go.Scatter(
         x=trend_x, y=[a + b * x for x in trend_x], mode="lines",
         name="선형 추세선", line=dict(color="#ff7f0e", width=2.5, dash="dash")))
 
-차트에_표시 = show_연평균 or show_이동평균 or (show_추세선 and trend is not None)
+차트에_표시 = show_연평균 or show_이동평균 or show_추세선
 if show_극단 and 차트에_표시:
     hottest_year = int(연평균.idxmax()); hottest_val = float(연평균.max())
     coldest_year = int(연평균.idxmin()); coldest_val = float(연평균.min())
@@ -321,7 +332,7 @@ with c4a:
     st.dataframe(top10.style.format({"평균기온(℃)": "{:.2f}", "최저기온(℃)": "{:.2f}", "최고기온(℃)": "{:.2f}"}))
 with c4b:
     st.write("**최저기온 하위 10일**")
-    st.dataframe(bottom10.style.format({"평균기온(℃)": "{:.2f}", "최저기온(℃)": "{:.2f}", "최고기온(℃)": "{:.2f}"}))
+    st.dataframe(bottom10.style.format({"평균기온(℃)": "{:.2f}", "최저기온(℃)": "{:.2f}", "최고기온(℃)": "{:.2f}")})
 
 # ---------- 13. 일교차 및 변화량 ----------
 st.subheader("일교차 및 연평균 변화량")
@@ -364,9 +375,9 @@ with st.expander("연도별 상세 데이터 보기"):
     table = pd.DataFrame({
         "연평균기온(℃)": 연평균,
         "5년 이동평균(℃)": 이동평균,
-        "이상치 여부": table.index.map(lambda y: "●" if y in 이상치_연도 else ""),
     })
-    st.dataframe(table.style.format({"연평균기온(℃)": "{:.2f}", "5년 이동평균(℃)": "{:.2f}"}))
+    table["이상치 여부"] = table.index.map(lambda y: "●" if y in 이상치_연도 else "")
+    st.dataframe(table.style.format({"연평균기온(℃)": "{:.2f}", "5년 이동평균(℃)": "{:.2f}")))
 
     if 이상치_연도:
         st.write(f"**이상치 연도 ({len(이상치_연도)}개)**")
