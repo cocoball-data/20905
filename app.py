@@ -380,12 +380,15 @@ with st.expander("연도별 상세 데이터 보기"):
         "5년 이동평균(℃)": 이동평균,
     })
     table["이상치 여부"] = table.index.map(lambda y: "●" if y in 이상치_연도 else "")
-    st.dataframe(table.style.format({"연평균기온(℃)": "{:.2f}", "5년 이동평균(℃)": "{:.2f}")))
+
+    # 소수점 2자리 표시 형식 (dict를 미리 만들어 사용)
+    table_fmt = {"연평균기온(℃)": "{:.2f}", "5년 이동평균(℃)": "{:.2f}"}
+    st.dataframe(table.style.format(table_fmt))
 
     if 이상치_연도:
-        st.write(f"**이상치 연도 ({len(이상치_연도)}개)**")
+        out_fmt = {"연평균기온(℃)": "{:.2f}"}
         st.dataframe(
             pd.DataFrame({
                 "연도": 이상치_연도,
                 "연평균기온(℃)": [float(연평균[y]) for y in 이상치_연도],
-            }).style.format({"연평균기온(℃)": "{:.2f}"}))
+            }).style.format(out_fmt))
