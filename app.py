@@ -94,6 +94,8 @@ df_선택 = df[선택_mask]
 전체_평균 = df["평균기온(℃)"].mean()
 기간_시작 = int(연평균.index.min())
 기간_끝 = int(연평균.index.max())
+min_year = int(연평균.index.min())
+max_year = int(연평균.index.max())
 
 # ---------- 4. 사이드바 ----------
 st.sidebar.header("연도 범위 선택")
