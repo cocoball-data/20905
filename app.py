@@ -86,9 +86,9 @@ st.subheader("월별 평균기온 히트맵")
 
 fig_heatmap = go.Figure(
     go.Heatmap(
-        z=m월별.values,
-        x=m월별.columns.astype(int),
-        y=m월별.index,
+        z=월별.values,
+        x=월별.columns.astype(int),
+        y=월별.index,
         coloraxis="coloraxis",
         hovertemplate="연도=%{y}<br>월=%{x}<br>평균기온=%{z:.2f} ℃<extra></extra>",
     )
